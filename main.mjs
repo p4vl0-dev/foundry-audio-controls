@@ -21,7 +21,7 @@ const handleDirectory = async (directory) => {
         if (!Number.isFinite(duration) || duration <= 0) continue; // Skip if invalid duration
         if (!controls[soundId]) {
             const newRow = document.createElement("div");
-            newRow.classList.add("jenny-controls", "flexrow");
+            newRow.classList.add("jenny-controls-fork", "flexrow");
             newRow.style.display = "flex";
             newRow.style.width = "100%";
             newRow.style.marginTop = "5px";
