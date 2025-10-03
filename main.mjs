@@ -1,54 +1,80 @@
- const controls = {}
- const handleDirectory = (directory) => {
-    if (!directory instanceof PlaylistDirectory) {
+const controls = {}
+const handleDirectory = async (directory) => {
+    if (!(directory instanceof PlaylistDirectory)) {
         return
     }
-    if (directory.closing) {
-        return
-    }
-    const sounds = Array.from(document.querySelectorAll("#currently-playing .playlist-sounds .sound"))
+    const sounds = Array.from(document.querySelectorAll(".currently-playing .playlist-sounds .sound"))
+        .filter(element => element.dataset.playlistId && element.dataset.soundId)
         .map((element) => ({
             element,
-            playlist_sound: game.playlists.get(element.dataset.playlistId).sounds.get(element.dataset.soundId)
+            playlist_sound: game.playlists.get(element.dataset.playlistId)?.sounds.get(element.dataset.soundId)
         }))
+        .filter(sound => sound.playlist_sound); // Ensure sound exists
     for (const sound of sounds) {
-        if (!controls[sound.element.dataset.soundId]) {
-            const newRow = document.createElement("div")
-            newRow.classList.add("jenny-controls", "flexrow")
-            const seeker = document.createElement("input")
-            seeker.type = "range"
-            seeker.min = 0
-            seeker.step = 0.05
-            newRow.appendChild(seeker)
-            seeker.value = sound.playlist_sound.sound.currentTime ?? sound.playlist_sound.pausedTime
-            seeker.max = sound.playlist_sound.sound.duration ?? sound.playlist_sound.pausedTime
-            let updating = false
-            seeker.addEventListener("change", async (event) => {
-                updating = true
-                const was_playing = sound.playlist_sound.playing
-                const time = parseFloat(event.target.value)
-                await sound.playlist_sound.update({playing: false})
-                await sound.playlist_sound.update({pausedTime: time})
-                await sound.playlist_sound.update({playing: was_playing})
-                updating = false
-            })
+        const soundId = sound.element.dataset.soundId;
+        const playlist_sound = sound.playlist_sound;
+        if (playlist_sound.streaming) continue; // Skip streaming sounds as they can't be sought
+        if (!playlist_sound.sound || !playlist_sound.sound.loaded) {
+            await playlist_sound.load(); // Changed to load() for V13 compatibility
+        }
+        const duration = playlist_sound.sound?.duration ?? playlist_sound.pausedTime ?? 0;
+        if (!Number.isFinite(duration) || duration <= 0) continue; // Skip if invalid duration
+        if (!controls[soundId]) {
+            const newRow = document.createElement("div");
+            newRow.classList.add("jenny-controls", "flexrow");
+            newRow.style.display = "flex";
+            newRow.style.width = "100%";
+            newRow.style.marginTop = "5px";
+            const seeker = document.createElement("input");
+            seeker.type = "range";
+            seeker.min = 0;
+            seeker.step = 0.05;
+            seeker.style.flex = "1";
+            seeker.value = playlist_sound.sound?.currentTime ?? playlist_sound.pausedTime ?? 0;
+            seeker.max = duration;
+            newRow.appendChild(seeker);
+            let updating = false;
+            seeker.addEventListener("change", async (event) => { // Reverted to "change" to avoid lag during drag; seeks on release
+                updating = true;
+                const was_playing = playlist_sound.playing;
+                const time = parseFloat(event.target.value);
+                await playlist_sound.update({ playing: false });
+                await playlist_sound.update({ pausedTime: time });
+                await playlist_sound.update({ playing: was_playing });
+                updating = false;
+                // Force refresh to ensure max and timer display correctly
+                playlist_sound.synchronize();
+            });
             const liveUpdate = () => {
                 setTimeout(() => {
-                    if (sound.playlist_sound.playing && !updating) {
-                        seeker.value = sound.playlist_sound.sound.currentTime
-                        seeker.max = sound.playlist_sound.sound.duration
+                    if (playlist_sound.playing && !updating) {
+                        seeker.value = playlist_sound.sound?.currentTime ?? 0;
+                        const dur = playlist_sound.sound?.duration ?? seeker.max;
+                        if (Number.isFinite(dur) && dur > 0) {
+                            seeker.max = dur;
+                        }
                     }
-                    if (sound.playlist_sound.pausedTime !== null || sound.playlist_sound.playing) {
-                        requestAnimationFrame(liveUpdate)
+                    if (playlist_sound.pausedTime !== null || playlist_sound.playing) {
+                        requestAnimationFrame(liveUpdate);
                     }
-                }, 1000)
-            }
-            liveUpdate()
-            controls[sound.element.dataset.soundId] = newRow
+                }, 1000); // Kept original 1s update interval to reduce CPU usage
+            };
+            liveUpdate();
+            controls[soundId] = newRow;
         }
-        sound.element.appendChild(controls[sound.element.dataset.soundId])
+        if (!sound.element.contains(controls[soundId])) {
+            sound.element.appendChild(controls[soundId]);
+        }
     }
 }
 
-Hooks.on("changeSidebarTab", handleDirectory)
-Hooks.on("renderPlaylistDirectory", handleDirectory)
+// Hooks for V13 compatibility
+Hooks.on("renderPlaylistDirectory", handleDirectory);
+Hooks.on("renderSidebarTab", (app) => {
+    if (app instanceof PlaylistDirectory) handleDirectory(app);
+});
+Hooks.on("updatePlaylistSound", (sound, changes) => {
+    if (changes.playing !== undefined || changes.pausedTime !== undefined || changes.lapsed !== undefined) {
+        handleDirectory(game.playlists.directory);
+    }
+});
