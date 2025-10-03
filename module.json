@@ -1,10 +1,11 @@
 {
-  "id": "jennys-audio-controls",
-  "title": "jenny's audio controls",
-  "version": "0.0.1",
+  "id": "jennys-audio-controls-fork",
+  "title": "Jenny's audio controls fork",
+  "description": "Fork from original jenny's module, compatible with v13 only.",
+  "version": "1.0.1",
   "compatibility": {
-    "minimum": "11",
-    "verified": "11"
+    "minimum": "13",
+    "verified": "13"
   },
   "esmodules": [
     "main.mjs"
@@ -15,8 +16,14 @@
       "discord": "jennyofworms",
       "url": "https://github.com/JenniferPylko",
       "flags": {}
+    },
+    {
+      "name": "p4vl0",
+      "discord": "p4vl0o",
+      "url": "https://github.com/p4vl0-dev",
+      "flags": {}
     }
   ],
-  "manifest": "https://raw.githubusercontent.com/JenniferPylko/foundry-audio-controls/main/module.json",
-  "download": "https://github.com/JenniferPylko/foundry-audio-controls/archive/refs/tags/v0.0.1.zip"
+  "manifest": "https://raw.githubusercontent.com/p4vl0-dev/foundry-audio-controls-fork/refs/heads/main/module.json",
+  "download": "https://github.com/p4vl0-dev/foundry-audio-controls-fork/releases/latest/download/jennys-audio-controls-fork.zip"
 }
